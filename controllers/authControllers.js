@@ -8,6 +8,10 @@ const {
   insertRecord,
 } = require("../utils/sqlFunctions");
 
+const generateAccessToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+};
+
 const register = async (req, res) => {
   const { email, username, password } = req.body;
   const salt = await bcrypt.genSalt(10);
@@ -45,7 +49,32 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  res.status(200).send("Login succesful");
+  const { email, password } = req.body;
+
+  try {
+    const existingUser = await checkRecordExists("users", "email", email);
+
+    if (existingUser) {
+      const passwordMatch = await bcrypt.compare(
+        password,
+        existingUser.password
+      );
+
+      if (passwordMatch) {
+        delete existingUser.password;
+        res.status(200).json({
+          ...existingUser,
+          access_token: generateAccessToken(),
+        });
+      } else {
+        res.status(401).json({ error: "Invalid credentials" });
+      }
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 module.exports = {
