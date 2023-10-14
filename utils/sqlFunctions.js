@@ -1,6 +1,6 @@
 const mysql = require("mysql");
 const config = require("../config/config");
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(process.env.DATABASE_URL);
 
 const checkTableExists = (tableName) => {
   return new Promise((resolve, reject) => {
