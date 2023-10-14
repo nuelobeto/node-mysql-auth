@@ -116,6 +116,11 @@ const login = async (req, res) => {
     const existingUser = await checkRecordExists("users", "email", email);
 
     if (existingUser) {
+      if (!existingUser.password) {
+        res.status(401).json({ error: "Invalid credentials" });
+        return;
+      }
+
       const passwordMatch = await bcrypt.compare(
         password,
         existingUser.password
@@ -151,11 +156,15 @@ const googleAuth = async (req, res) => {
     const existingUser = await checkRecordExists("users", "email", email);
 
     if (existingUser) {
-      delete existingUser.password;
+      await updateRecord("users", { verified: true }, "email", email);
+
+      const updatedUser = await checkRecordExists("users", "email", email);
+
+      delete updatedUser.password;
 
       res.status(200).json({
-        ...existingUser,
-        access_token: generateAccessToken(existingUser.userId),
+        ...updatedUser,
+        access_token: generateAccessToken(updatedUser.userId),
       });
     } else {
       await createTable(userSchema);
@@ -176,6 +185,11 @@ const googleAuth = async (req, res) => {
 
 const sendPasswordResetLink = async (req, res) => {
   const { email } = req.body;
+
+  if (!email) {
+    res.status(400).json({ error: "Email field cannot be empty!" });
+    return;
+  }
 
   try {
     const user = await checkRecordExists("users", "email", email);
@@ -236,6 +250,11 @@ const resetPassword = async (req, res) => {
   const { password } = req.body;
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
+
+  if (!password) {
+    res.status(400).json({ error: "Password field cannot be empty!" });
+    return;
+  }
 
   try {
     const updates = {
